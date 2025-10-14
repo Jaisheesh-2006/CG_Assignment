@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Virtual Room Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .ui-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="ui-overlay">
+        <h3>3D Virtual Room</h3>
+        <p>Interactive camera controls enabled</p>
+        <p>Characters and furniture placed</p>
+    </div>
+    
+    <div class="controls">
+        <p><strong>Controls:</strong></p>
+        <p>• Mouse: Rotate view</p>
+        <p>• Scroll: Zoom in/out</p>
+        <p>• Right-click + drag: Pan</p>
+    </div>
+
+    <!-- Three.js from CDN - using importmap for ES modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // Try to create WebGL renderer with fallback options
+        let renderer;
+        try {
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true,
+                powerPreference: 'high-performance',
+                failIfMajorPerformanceCaveat: false
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+            console.log('WebGL renderer created successfully');
+        } catch (error) {
+            console.error('Failed to create WebGL renderer:', error);
+            // Display error message to user
+            document.body.innerHTML += '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; z-index: 1000;"><h2>WebGL Not Available</h2><p>Your browser or environment does not support WebGL, which is required for 3D rendering.</p></div>';
+            throw error;
+        }
+
+        // OrbitControls setup
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
+        controls.minDistance = 2;
+        controls.maxDistance = 20;
+
+        // Lighting setup
+        // Ambient light for base illumination
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        scene.add(ambientLight);
+
+        // Directional light with shadow casting
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 10, 5);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -10;
+        directionalLight.shadow.camera.right = 10;
+        directionalLight.shadow.camera.top = 10;
+        directionalLight.shadow.camera.bottom = -10;
+        scene.add(directionalLight);
+
+        // Additional warm light
+        const pointLight = new THREE.PointLight(0xffaa44, 0.6, 100);
+        pointLight.position.set(-5, 5, 5);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        // Texture loader
+        const textureLoader = new THREE.TextureLoader();
+
+        // Create room floor with wood texture
+        const floorGeometry = new THREE.PlaneGeometry(20, 20);
+        
+        // Load wood texture for floor
+        const woodTexture = textureLoader.load(
+            '/textures/wood.jpg',
+            function(texture) {
+                // Texture loaded successfully
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(4, 4);
+                console.log('Wood texture loaded successfully');
+            },
+            function(progress) {
+                console.log('Texture loading progress:', progress);
+            },
+            function(error) {
+                console.warn('Could not load wood texture, using fallback:', error);
+            }
+        );
+
+        const floorMaterial = new THREE.MeshStandardMaterial({ 
+            map: woodTexture,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Create room walls
+        const wallHeight = 8;
+        const wallMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xf5f5dc,
+            roughness: 0.9,
+            metalness: 0.05
+        });
+
+        // Back wall
+        const backWallGeometry = new THREE.PlaneGeometry(20, wallHeight);
+        const backWall = new THREE.Mesh(backWallGeometry, wallMaterial);
+        backWall.position.set(0, wallHeight/2, -10);
+        backWall.receiveShadow = true;
+        scene.add(backWall);
+
+        // Left wall
+        const leftWallGeometry = new THREE.PlaneGeometry(20, wallHeight);
+        const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+        leftWall.position.set(-10, wallHeight/2, 0);
+        leftWall.rotation.y = Math.PI / 2;
+        leftWall.receiveShadow = true;
+        scene.add(leftWall);
+
+        // Right wall
+        const rightWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+        rightWall.position.set(10, wallHeight/2, 0);
+        rightWall.rotation.y = -Math.PI / 2;
+        rightWall.receiveShadow = true;
+        scene.add(rightWall);
+
+        // Create a wooden table
+        const tableGroup = new THREE.Group();
+        
+        // Table top
+        const tableTopGeometry = new THREE.BoxGeometry(4, 0.2, 2);
+        const tableTopMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            roughness: 0.6,
+            metalness: 0.1
+        });
+        const tableTop = new THREE.Mesh(tableTopGeometry, tableTopMaterial);
+        tableTop.position.y = 1.5;
+        tableTop.castShadow = true;
+        tableTop.receiveShadow = true;
+        tableGroup.add(tableTop);
+
+        // Table legs
+        const legGeometry = new THREE.BoxGeometry(0.2, 1.5, 0.2);
+        const legMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x654321,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+
+        const legPositions = [
+            [-1.8, 0.75, -0.8],
+            [1.8, 0.75, -0.8],
+            [-1.8, 0.75, 0.8],
+            [1.8, 0.75, 0.8]
+        ];
+
+        legPositions.forEach(pos => {
+            const leg = new THREE.Mesh(legGeometry, legMaterial);
+            leg.position.set(...pos);
+            leg.castShadow = true;
+            tableGroup.add(leg);
+        });
+
+        tableGroup.position.set(0, 0, -3);
+        scene.add(tableGroup);
+
+        // Create decorative objects on table
+        // Sphere decoration
+        const sphereGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        const sphereMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xff6b6b,
+            roughness: 0.3,
+            metalness: 0.7
+        });
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.set(-1, 2, -3);
+        sphere.castShadow = true;
+        scene.add(sphere);
+
+        // Cube decoration
+        const cubeGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const cubeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x4ecdc4,
+            roughness: 0.4,
+            metalness: 0.6
+        });
+        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+        cube.position.set(1, 1.95, -3);
+        cube.castShadow = true;
+        scene.add(cube);
+
+        // Create character models (simple geometric shapes representing people)
+        // Character 1 - Standing person (represented as stacked boxes)
+        const character1Group = new THREE.Group();
+        
+        // Body
+        const bodyGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.4);
+        const bodyMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x4a90e2,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        const body1 = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body1.position.y = 1.2;
+        body1.castShadow = true;
+        character1Group.add(body1);
+
+        // Head
+        const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const headMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffdbac,
+            roughness: 0.9,
+            metalness: 0.05
+        });
+        const head1 = new THREE.Mesh(headGeometry, headMaterial);
+        head1.position.y = 2.1;
+        head1.castShadow = true;
+        character1Group.add(head1);
+
+        // Legs
+        const legGeometry2 = new THREE.BoxGeometry(0.3, 1, 0.3);
+        const legMaterial2 = new THREE.MeshStandardMaterial({ 
+            color: 0x2c3e50,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        
+        const leg1 = new THREE.Mesh(legGeometry2, legMaterial2);
+        leg1.position.set(-0.2, 0.5, 0);
+        leg1.castShadow = true;
+        character1Group.add(leg1);
+        
+        const leg2 = new THREE.Mesh(legGeometry2, legMaterial2);
+        leg2.position.set(0.2, 0.5, 0);
+        leg2.castShadow = true;
+        character1Group.add(leg2);
+
+        character1Group.position.set(-3, 0, 2);
+        scene.add(character1Group);
+
+        // Character 2 - Different colored character
+        const character2Group = new THREE.Group();
+        
+        const body2 = new THREE.Mesh(bodyGeometry, new THREE.MeshStandardMaterial({ 
+            color: 0xe74c3c,
+            roughness: 0.8,
+            metalness: 0.1
+        }));
+        body2.position.y = 1.2;
+        body2.castShadow = true;
+        character2Group.add(body2);
+
+        const head2 = new THREE.Mesh(headGeometry, headMaterial);
+        head2.position.y = 2.1;
+        head2.castShadow = true;
+        character2Group.add(head2);
+
+        const leg3 = new THREE.Mesh(legGeometry2, legMaterial2);
+        leg3.position.set(-0.2, 0.5, 0);
+        leg3.castShadow = true;
+        character2Group.add(leg3);
+        
+        const leg4 = new THREE.Mesh(legGeometry2, legMaterial2);
+        leg4.position.set(0.2, 0.5, 0);
+        leg4.castShadow = true;
+        character2Group.add(leg4);
+
+        character2Group.position.set(4, 0, 1);
+        scene.add(character2Group);
+
+        // Add a chair
+        const chairGroup = new THREE.Group();
+        
+        // Chair seat
+        const seatGeometry = new THREE.BoxGeometry(1, 0.1, 1);
+        const chairMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        const seat = new THREE.Mesh(seatGeometry, chairMaterial);
+        seat.position.y = 1;
+        seat.castShadow = true;
+        chairGroup.add(seat);
+
+        // Chair back
+        const backGeometry = new THREE.BoxGeometry(1, 1.5, 0.1);
+        const back = new THREE.Mesh(backGeometry, chairMaterial);
+        back.position.set(0, 1.75, -0.45);
+        back.castShadow = true;
+        chairGroup.add(back);
+
+        // Chair legs
+        const chairLegGeometry = new THREE.BoxGeometry(0.1, 1, 0.1);
+        const chairLegPositions = [
+            [-0.4, 0.5, -0.4],
+            [0.4, 0.5, -0.4],
+            [-0.4, 0.5, 0.4],
+            [0.4, 0.5, 0.4]
+        ];
+
+        chairLegPositions.forEach(pos => {
+            const chairLeg = new THREE.Mesh(chairLegGeometry, chairMaterial);
+            chairLeg.position.set(...pos);
+            chairLeg.castShadow = true;
+            chairGroup.add(chairLeg);
+        });
+
+        chairGroup.position.set(2, 0, 4);
+        scene.add(chairGroup);
+
+        // Set initial camera position
+        camera.position.set(8, 6, 8);
+        camera.lookAt(0, 2, 0);
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onWindowResize);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update controls
+            controls.update();
+
+            // Add subtle animations
+            const time = Date.now() * 0.001;
+            
+            // Rotate decorative objects slowly
+            sphere.rotation.y = time * 0.5;
+            cube.rotation.x = time * 0.3;
+            cube.rotation.z = time * 0.2;
+
+            // Subtle character movement (breathing effect)
+            character1Group.scale.y = 1 + Math.sin(time * 2) * 0.02;
+            character2Group.scale.y = 1 + Math.sin(time * 2 + Math.PI) * 0.02;
+
+            renderer.render(scene, camera);
+        }
+
+        // Start the animation loop
+        animate();
+
+        // Log initialization
+        console.log('3D Virtual Room initialized successfully');
+        console.log('Scene contains:', scene.children.length, 'objects');
+        console.log('Lighting: Ambient + Directional + Point lights with shadows');
+        console.log('Materials: MeshStandardMaterial with realistic properties');
+        console.log('Controls: OrbitControls enabled for camera navigation');
+    </script>
+</body>
+</html>
