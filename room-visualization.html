@@ -48,14 +48,40 @@
     <div class="ui-overlay">
         <h3>3D Virtual Room</h3>
         <p>Interactive camera controls enabled</p>
-        <p>Characters and furniture placed</p>
+        <p>Click objects to interact!</p>
     </div>
     
     <div class="controls">
-        <p><strong>Controls:</strong></p>
-        <p>• Mouse: Rotate view</p>
-        <p>• Scroll: Zoom in/out</p>
-        <p>• Right-click + drag: Pan</p>
+        <p><strong>Mouse Controls:</strong></p>
+        <p>• Rotate: Left-click + drag</p>
+        <p>• Zoom: Scroll wheel</p>
+        <p>• Pan: Right-click + drag</p>
+        <hr style="margin: 10px 0; border-color: rgba(255,255,255,0.3);">
+        <p><strong>Lighting Controls:</strong></p>
+        <div style="margin: 5px 0;">
+            <label>Ambient: <span id="ambientValue">0.4</span></label>
+            <input type="range" id="ambientSlider" min="0" max="1" step="0.1" value="0.4" style="width: 100%;">
+        </div>
+        <div style="margin: 5px 0;">
+            <label>Directional: <span id="directionalValue">0.8</span></label>
+            <input type="range" id="directionalSlider" min="0" max="2" step="0.1" value="0.8" style="width: 100%;">
+        </div>
+        <div style="margin: 5px 0;">
+            <label>Spotlights: <span id="spotValue">1.0</span></label>
+            <input type="range" id="spotSlider" min="0" max="3" step="0.1" value="1.0" style="width: 100%;">
+        </div>
+        <hr style="margin: 10px 0; border-color: rgba(255,255,255,0.3);">
+        <p><strong>Camera Settings:</strong></p>
+        <div style="margin: 5px 0;">
+            <label>FOV: <span id="fovValue">75</span>°</label>
+            <input type="range" id="fovSlider" min="40" max="120" step="5" value="75" style="width: 100%;">
+        </div>
+        <div style="margin: 5px 0;">
+            <label>
+                <input type="checkbox" id="helpersToggle" checked> Show Light Helpers
+            </label>
+        </div>
+        <button id="resetBtn" style="width: 100%; margin-top: 10px; padding: 5px; cursor: pointer; background: #4a90e2; color: white; border: none; border-radius: 3px;">Reset All</button>
     </div>
 
     <!-- Three.js from CDN - using importmap for ES modules -->
@@ -133,6 +159,59 @@
         pointLight.castShadow = true;
         scene.add(pointLight);
 
+        // SpotLight 1 - Focused on the table
+        const spotLight1 = new THREE.SpotLight(0xffffff, 1.5);
+        spotLight1.position.set(0, 6, -3);
+        spotLight1.angle = Math.PI / 6;
+        spotLight1.penumbra = 0.3;
+        spotLight1.decay = 2;
+        spotLight1.distance = 15;
+        spotLight1.castShadow = true;
+        spotLight1.shadow.mapSize.width = 1024;
+        spotLight1.shadow.mapSize.height = 1024;
+        scene.add(spotLight1);
+        scene.add(spotLight1.target);
+        spotLight1.target.position.set(0, 0, -3);
+
+        // SpotLight 2 - Accent lighting on bookshelf
+        const spotLight2 = new THREE.SpotLight(0xaaddff, 1.2);
+        spotLight2.position.set(-10, 5, -3);
+        spotLight2.angle = Math.PI / 5;
+        spotLight2.penumbra = 0.4;
+        spotLight2.decay = 2;
+        spotLight2.distance = 12;
+        spotLight2.castShadow = true;
+        scene.add(spotLight2);
+        scene.add(spotLight2.target);
+        spotLight2.target.position.set(-8, 2, -3);
+
+        // SpotLight 3 - Dramatic lighting for characters
+        const spotLight3 = new THREE.SpotLight(0xffddaa, 1);
+        spotLight3.position.set(5, 7, 2);
+        spotLight3.angle = Math.PI / 4;
+        spotLight3.penumbra = 0.5;
+        spotLight3.decay = 2;
+        spotLight3.distance = 20;
+        scene.add(spotLight3);
+        scene.add(spotLight3.target);
+        spotLight3.target.position.set(0, 0, 2);
+
+        // Add light helpers for debugging (visible indicators)
+        const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 2, 0xff0000);
+        scene.add(directionalLightHelper);
+
+        const pointLightHelper = new THREE.PointLightHelper(pointLight, 0.5, 0xffaa44);
+        scene.add(pointLightHelper);
+
+        const spotLightHelper1 = new THREE.SpotLightHelper(spotLight1, 0xffffff);
+        scene.add(spotLightHelper1);
+
+        const spotLightHelper2 = new THREE.SpotLightHelper(spotLight2, 0xaaddff);
+        scene.add(spotLightHelper2);
+
+        const spotLightHelper3 = new THREE.SpotLightHelper(spotLight3, 0xffddaa);
+        scene.add(spotLightHelper3);
+
         // Texture loader
         const textureLoader = new THREE.TextureLoader();
 
@@ -168,10 +247,26 @@
         floor.receiveShadow = true;
         scene.add(floor);
 
-        // Create room walls
+        // Load additional textures
+        const sandTexture = textureLoader.load('/textures/sand.jpg');
+        sandTexture.wrapS = THREE.RepeatWrapping;
+        sandTexture.wrapT = THREE.RepeatWrapping;
+        sandTexture.repeat.set(3, 3);
+
+        const grassTexture = textureLoader.load('/textures/grass.png');
+        grassTexture.wrapS = THREE.RepeatWrapping;
+        grassTexture.wrapT = THREE.RepeatWrapping;
+        grassTexture.repeat.set(2, 2);
+
+        const asphaltTexture = textureLoader.load('/textures/asphalt.png');
+        asphaltTexture.wrapS = THREE.RepeatWrapping;
+        asphaltTexture.wrapT = THREE.RepeatWrapping;
+        asphaltTexture.repeat.set(2, 2);
+
+        // Create room walls with texture
         const wallHeight = 8;
         const wallMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xf5f5dc,
+            map: sandTexture,
             roughness: 0.9,
             metalness: 0.05
         });
@@ -183,16 +278,16 @@
         backWall.receiveShadow = true;
         scene.add(backWall);
 
-        // Left wall
+        // Left wall  
         const leftWallGeometry = new THREE.PlaneGeometry(20, wallHeight);
-        const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+        const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial.clone());
         leftWall.position.set(-10, wallHeight/2, 0);
         leftWall.rotation.y = Math.PI / 2;
         leftWall.receiveShadow = true;
         scene.add(leftWall);
 
         // Right wall
-        const rightWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+        const rightWall = new THREE.Mesh(leftWallGeometry, wallMaterial.clone());
         rightWall.position.set(10, wallHeight/2, 0);
         rightWall.rotation.y = -Math.PI / 2;
         rightWall.receiveShadow = true;
@@ -201,10 +296,12 @@
         // Create a wooden table
         const tableGroup = new THREE.Group();
         
-        // Table top
+        // Table top with wood texture
         const tableTopGeometry = new THREE.BoxGeometry(4, 0.2, 2);
+        const tableWoodTexture = woodTexture.clone();
+        tableWoodTexture.repeat.set(2, 1);
         const tableTopMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x8B4513,
+            map: tableWoodTexture,
             roughness: 0.6,
             metalness: 0.1
         });
@@ -384,9 +481,431 @@
         chairGroup.position.set(2, 0, 4);
         scene.add(chairGroup);
 
+        // Add a bookshelf
+        const shelfGroup = new THREE.Group();
+        
+        // Shelf frame
+        const shelfFrameMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x654321,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        
+        // Vertical sides
+        const sideGeometry = new THREE.BoxGeometry(0.3, 4, 1);
+        const leftSide = new THREE.Mesh(sideGeometry, shelfFrameMaterial);
+        leftSide.position.set(-1.35, 2, 0);
+        leftSide.castShadow = true;
+        shelfGroup.add(leftSide);
+        
+        const rightSide = new THREE.Mesh(sideGeometry, shelfFrameMaterial);
+        rightSide.position.set(1.35, 2, 0);
+        rightSide.castShadow = true;
+        shelfGroup.add(rightSide);
+        
+        // Shelves
+        const shelfGeometry = new THREE.BoxGeometry(3, 0.1, 0.9);
+        const shelfLevels = [0.5, 1.5, 2.5, 3.5];
+        
+        shelfLevels.forEach(height => {
+            const shelf = new THREE.Mesh(shelfGeometry, shelfFrameMaterial);
+            shelf.position.set(0, height, 0);
+            shelf.castShadow = true;
+            shelf.receiveShadow = true;
+            shelfGroup.add(shelf);
+        });
+        
+        // Add books on shelves
+        const bookColors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0x6c5ce7];
+        shelfLevels.forEach((shelfHeight, shelfIndex) => {
+            if (shelfIndex < 3) { // Add books to first 3 shelves
+                for (let i = 0; i < 8; i++) {
+                    const bookWidth = 0.15 + Math.random() * 0.1;
+                    const bookHeight = 0.6 + Math.random() * 0.2;
+                    const bookGeometry = new THREE.BoxGeometry(bookWidth, bookHeight, 0.7);
+                    const bookMaterial = new THREE.MeshStandardMaterial({ 
+                        color: bookColors[Math.floor(Math.random() * bookColors.length)],
+                        roughness: 0.8,
+                        metalness: 0.1
+                    });
+                    const book = new THREE.Mesh(bookGeometry, bookMaterial);
+                    book.position.set(-1.2 + i * 0.3, shelfHeight + 0.05 + bookHeight/2, 0);
+                    book.rotation.y = (Math.random() - 0.5) * 0.1;
+                    book.castShadow = true;
+                    shelfGroup.add(book);
+                }
+            }
+        });
+        
+        shelfGroup.position.set(-8, 0, -3);
+        scene.add(shelfGroup);
+
+        // Add a decorative vase
+        const vaseGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.8, 16);
+        const vaseMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x2c3e50,
+            roughness: 0.3,
+            metalness: 0.5
+        });
+        const vase = new THREE.Mesh(vaseGeometry, vaseMaterial);
+        vase.position.set(0, 1.75, -3);
+        vase.castShadow = true;
+        scene.add(vase);
+
+        // Add a table lamp
+        const lampGroup = new THREE.Group();
+        
+        // Lamp base
+        const lampBaseGeometry = new THREE.CylinderGeometry(0.15, 0.2, 0.3, 16);
+        const lampBaseMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            roughness: 0.6,
+            metalness: 0.3
+        });
+        const lampBase = new THREE.Mesh(lampBaseGeometry, lampBaseMaterial);
+        lampBase.castShadow = true;
+        lampGroup.add(lampBase);
+        
+        // Lamp pole
+        const lampPoleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8);
+        const lampPole = new THREE.Mesh(lampPoleGeometry, lampBaseMaterial);
+        lampPole.position.y = 0.45;
+        lampPole.castShadow = true;
+        lampGroup.add(lampPole);
+        
+        // Lamp shade
+        const lampShadeGeometry = new THREE.ConeGeometry(0.3, 0.5, 16);
+        const lampShadeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xf9ca24,
+            roughness: 0.7,
+            metalness: 0.1,
+            emissive: 0xf9ca24,
+            emissiveIntensity: 0.2
+        });
+        const lampShade = new THREE.Mesh(lampShadeGeometry, lampShadeMaterial);
+        lampShade.position.y = 1;
+        lampShade.castShadow = true;
+        lampGroup.add(lampShade);
+        
+        lampGroup.position.set(-3, 1.6, -3);
+        scene.add(lampGroup);
+
+        // Add picture frames on the wall
+        const frameGeometry = new THREE.BoxGeometry(1.5, 1.2, 0.1);
+        const frameMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            roughness: 0.6,
+            metalness: 0.2
+        });
+        
+        const pictureGeometry = new THREE.BoxGeometry(1.3, 1, 0.05);
+        const pictureMaterials = [
+            new THREE.MeshStandardMaterial({ color: 0x3498db, roughness: 0.5 }),
+            new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.5 }),
+            new THREE.MeshStandardMaterial({ color: 0x2ecc71, roughness: 0.5 })
+        ];
+        
+        for (let i = 0; i < 3; i++) {
+            const frameGroup = new THREE.Group();
+            
+            const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+            frame.castShadow = true;
+            frameGroup.add(frame);
+            
+            const picture = new THREE.Mesh(pictureGeometry, pictureMaterials[i]);
+            picture.position.z = 0.025;
+            frameGroup.add(picture);
+            
+            frameGroup.position.set(-5 + i * 2.5, 3, -9.95);
+            scene.add(frameGroup);
+        }
+
+        // Add a decorative rug on the floor with texture
+        const rugGeometry = new THREE.PlaneGeometry(5, 3);
+        const rugTexture = asphaltTexture.clone();
+        rugTexture.repeat.set(3, 2);
+        const rugMaterial = new THREE.MeshStandardMaterial({ 
+            map: rugTexture,
+            color: 0xc0392b,
+            roughness: 0.9,
+            metalness: 0.05
+        });
+        const rug = new THREE.Mesh(rugGeometry, rugMaterial);
+        rug.rotation.x = -Math.PI / 2;
+        rug.position.set(0, 0.01, -2);
+        rug.receiveShadow = true;
+        scene.add(rug);
+
+        // Add a door to the room
+        const doorGroup = new THREE.Group();
+        
+        // Door frame
+        const doorFrameGeometry = new THREE.BoxGeometry(2.2, 3.2, 0.2);
+        const doorFrameMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x654321,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        const doorFrame = new THREE.Mesh(doorFrameGeometry, doorFrameMaterial);
+        doorFrame.position.set(0, 1.6, 0);
+        doorFrame.castShadow = true;
+        doorGroup.add(doorFrame);
+        
+        // Door panel (clickable)
+        const doorPanelGeometry = new THREE.BoxGeometry(2, 3, 0.15);
+        const doorPanelMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            roughness: 0.6,
+            metalness: 0.2
+        });
+        const doorPanel = new THREE.Mesh(doorPanelGeometry, doorPanelMaterial);
+        doorPanel.position.set(0, 1.5, 0);
+        doorPanel.castShadow = true;
+        doorPanel.userData = { type: 'door', isOpen: false };
+        doorGroup.add(doorPanel);
+        
+        // Door handle
+        const handleGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+        const handleMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xFFD700,
+            roughness: 0.3,
+            metalness: 0.8
+        });
+        const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+        handle.position.set(0.8, 1.5, 0.1);
+        handle.castShadow = true;
+        doorGroup.add(handle);
+        
+        doorGroup.position.set(6, 0, -5);
+        scene.add(doorGroup);
+
+        // Create particle system for ambient effects
+        const particleCount = 200;
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleVelocities = [];
+
+        for (let i = 0; i < particleCount; i++) {
+            // Random positions within the room
+            particlePositions[i * 3] = (Math.random() - 0.5) * 15;
+            particlePositions[i * 3 + 1] = Math.random() * 6 + 0.5;
+            particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+            
+            // Random velocities for floating effect
+            particleVelocities.push({
+                x: (Math.random() - 0.5) * 0.02,
+                y: Math.random() * 0.01 + 0.005,
+                z: (Math.random() - 0.5) * 0.02
+            });
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+        const particlesMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            sizeAttenuation: true
+        });
+
+        const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particleSystem);
+
+        // Create glowing particles around the lamp
+        const glowParticleCount = 30;
+        const glowParticlesGeometry = new THREE.BufferGeometry();
+        const glowPositions = new Float32Array(glowParticleCount * 3);
+
+        for (let i = 0; i < glowParticleCount; i++) {
+            const angle = (i / glowParticleCount) * Math.PI * 2;
+            const radius = 0.5 + Math.random() * 0.3;
+            glowPositions[i * 3] = -3 + Math.cos(angle) * radius;
+            glowPositions[i * 3 + 1] = 2.5 + (Math.random() - 0.5) * 0.5;
+            glowPositions[i * 3 + 2] = -3 + Math.sin(angle) * radius;
+        }
+
+        glowParticlesGeometry.setAttribute('position', new THREE.BufferAttribute(glowPositions, 3));
+
+        const glowMaterial = new THREE.PointsMaterial({
+            color: 0xf9ca24,
+            size: 0.1,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+
+        const glowParticles = new THREE.Points(glowParticlesGeometry, glowMaterial);
+        scene.add(glowParticles);
+
         // Set initial camera position
         camera.position.set(8, 6, 8);
         camera.lookAt(0, 2, 0);
+
+        // Setup raycaster for mouse interactions
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredObject = null;
+        
+        // Interactive objects array
+        const interactiveObjects = [doorPanel, sphere, cube, vase];
+        
+        // Store original colors for hover effect
+        const originalColors = new Map();
+        interactiveObjects.forEach(obj => {
+            if (obj.material && obj.material.color) {
+                originalColors.set(obj, obj.material.color.clone());
+            }
+        });
+
+        // Mouse move handler for hover effect
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactiveObjects);
+            
+            // Reset previous hovered object
+            if (hoveredObject && !intersects.find(i => i.object === hoveredObject)) {
+                const originalColor = originalColors.get(hoveredObject);
+                if (originalColor && hoveredObject.material) {
+                    hoveredObject.material.color.copy(originalColor);
+                }
+                hoveredObject = null;
+                document.body.style.cursor = 'default';
+            }
+            
+            // Highlight new hovered object
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if (object !== hoveredObject) {
+                    hoveredObject = object;
+                    if (object.material && object.material.color) {
+                        object.material.color.setHex(0xffff00); // Yellow highlight
+                    }
+                    document.body.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        // Click handler for interactions
+        function onClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactiveObjects);
+            
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                
+                // Handle door interaction
+                if (object.userData.type === 'door') {
+                    object.userData.isOpen = !object.userData.isOpen;
+                    console.log('Door clicked! Open:', object.userData.isOpen);
+                }
+                
+                // Handle decorative objects
+                if (object === sphere) {
+                    console.log('Sphere clicked! Adding bounce effect');
+                    object.userData.bounceTime = Date.now() * 0.001;
+                }
+                
+                if (object === cube) {
+                    console.log('Cube clicked! Adding spin effect');
+                    object.userData.spinTime = Date.now() * 0.001;
+                }
+                
+                if (object === vase) {
+                    console.log('Vase clicked! Adding wobble effect');
+                    object.userData.wobbleTime = Date.now() * 0.001;
+                }
+            }
+        }
+
+        // Add event listeners
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('click', onClick);
+
+        // UI Controls event handlers
+        const ambientSlider = document.getElementById('ambientSlider');
+        const directionalSlider = document.getElementById('directionalSlider');
+        const spotSlider = document.getElementById('spotSlider');
+        const fovSlider = document.getElementById('fovSlider');
+        const helpersToggle = document.getElementById('helpersToggle');
+        const resetBtn = document.getElementById('resetBtn');
+
+        ambientSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            ambientLight.intensity = value;
+            document.getElementById('ambientValue').textContent = value.toFixed(1);
+        });
+
+        directionalSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            directionalLight.intensity = value;
+            document.getElementById('directionalValue').textContent = value.toFixed(1);
+        });
+
+        spotSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            spotLight1.intensity = value * 1.5;
+            spotLight2.intensity = value * 1.2;
+            spotLight3.intensity = value;
+            document.getElementById('spotValue').textContent = value.toFixed(1);
+        });
+
+        fovSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            camera.fov = value;
+            camera.updateProjectionMatrix();
+            document.getElementById('fovValue').textContent = value;
+        });
+
+        helpersToggle.addEventListener('change', (e) => {
+            const visible = e.target.checked;
+            directionalLightHelper.visible = visible;
+            pointLightHelper.visible = visible;
+            spotLightHelper1.visible = visible;
+            spotLightHelper2.visible = visible;
+            spotLightHelper3.visible = visible;
+        });
+
+        resetBtn.addEventListener('click', () => {
+            // Reset lighting
+            ambientLight.intensity = 0.4;
+            ambientSlider.value = 0.4;
+            document.getElementById('ambientValue').textContent = '0.4';
+
+            directionalLight.intensity = 0.8;
+            directionalSlider.value = 0.8;
+            document.getElementById('directionalValue').textContent = '0.8';
+
+            spotLight1.intensity = 1.5;
+            spotLight2.intensity = 1.2;
+            spotLight3.intensity = 1.0;
+            spotSlider.value = 1.0;
+            document.getElementById('spotValue').textContent = '1.0';
+
+            // Reset camera
+            camera.fov = 75;
+            camera.updateProjectionMatrix();
+            camera.position.set(8, 6, 8);
+            camera.lookAt(0, 2, 0);
+            controls.reset();
+            fovSlider.value = 75;
+            document.getElementById('fovValue').textContent = '75';
+
+            // Reset helpers
+            helpersToggle.checked = true;
+            directionalLightHelper.visible = true;
+            pointLightHelper.visible = true;
+            spotLightHelper1.visible = true;
+            spotLightHelper2.visible = true;
+            spotLightHelper3.visible = true;
+        });
 
         // Handle window resize
         function onWindowResize() {
@@ -402,8 +921,13 @@
 
             // Update controls
             controls.update();
+            
+            // Update light helpers
+            spotLightHelper1.update();
+            spotLightHelper2.update();
+            spotLightHelper3.update();
 
-            // Add subtle animations
+            // Add animations
             const time = Date.now() * 0.001;
             
             // Rotate decorative objects slowly
@@ -411,9 +935,120 @@
             cube.rotation.x = time * 0.3;
             cube.rotation.z = time * 0.2;
 
-            // Subtle character movement (breathing effect)
-            character1Group.scale.y = 1 + Math.sin(time * 2) * 0.02;
-            character2Group.scale.y = 1 + Math.sin(time * 2 + Math.PI) * 0.02;
+            // Character 1 - Walking in a circle pattern
+            const walkRadius = 2;
+            const walkSpeed = 0.3;
+            character1Group.position.x = -3 + Math.cos(time * walkSpeed) * walkRadius;
+            character1Group.position.z = 2 + Math.sin(time * walkSpeed) * walkRadius;
+            
+            // Face the direction of movement
+            character1Group.rotation.y = time * walkSpeed + Math.PI / 2;
+            
+            // Walking animation - leg movement
+            if (leg1 && leg2) {
+                leg1.rotation.x = Math.sin(time * 4) * 0.5;
+                leg2.rotation.x = -Math.sin(time * 4) * 0.5;
+            }
+            
+            // Head bobbing while walking
+            if (head1) {
+                head1.position.y = 2.1 + Math.abs(Math.sin(time * 4)) * 0.05;
+            }
+
+            // Character 2 - Walking back and forth
+            const char2WalkDistance = 3;
+            character2Group.position.x = 4 + Math.sin(time * 0.5) * char2WalkDistance;
+            
+            // Face the direction of movement
+            character2Group.rotation.y = Math.sin(time * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2;
+            
+            // Walking animation for character 2
+            if (leg3 && leg4) {
+                leg3.rotation.x = Math.sin(time * 3) * 0.5;
+                leg4.rotation.x = -Math.sin(time * 3) * 0.5;
+            }
+            
+            // Head bobbing
+            if (head2) {
+                head2.position.y = 2.1 + Math.abs(Math.sin(time * 3)) * 0.05;
+            }
+            
+            // Breathing effect (subtle body scaling)
+            body1.scale.y = 1 + Math.sin(time * 2) * 0.02;
+            body2.scale.y = 1 + Math.sin(time * 2.5) * 0.02;
+            
+            // Door opening/closing animation
+            if (doorPanel.userData.isOpen) {
+                doorPanel.rotation.y = THREE.MathUtils.lerp(doorPanel.rotation.y, Math.PI / 2, 0.05);
+            } else {
+                doorPanel.rotation.y = THREE.MathUtils.lerp(doorPanel.rotation.y, 0, 0.05);
+            }
+            
+            // Sphere bounce effect when clicked
+            if (sphere.userData.bounceTime !== undefined) {
+                const bounceElapsed = time - sphere.userData.bounceTime;
+                if (bounceElapsed < 2) {
+                    sphere.position.y = 2 + Math.abs(Math.sin(bounceElapsed * 6)) * 0.5 * (1 - bounceElapsed / 2);
+                } else {
+                    sphere.position.y = 2;
+                    delete sphere.userData.bounceTime;
+                }
+            }
+            
+            // Cube spin effect when clicked
+            if (cube.userData.spinTime !== undefined) {
+                const spinElapsed = time - cube.userData.spinTime;
+                if (spinElapsed < 2) {
+                    cube.rotation.y = spinElapsed * 10;
+                } else {
+                    delete cube.userData.spinTime;
+                }
+            }
+            
+            // Vase wobble effect when clicked
+            if (vase.userData.wobbleTime !== undefined) {
+                const wobbleElapsed = time - vase.userData.wobbleTime;
+                if (wobbleElapsed < 2) {
+                    vase.rotation.z = Math.sin(wobbleElapsed * 10) * 0.3 * (1 - wobbleElapsed / 2);
+                } else {
+                    vase.rotation.z = 0;
+                    delete vase.userData.wobbleTime;
+                }
+            }
+            
+            // Animate floating particles
+            const positions = particlesGeometry.attributes.position.array;
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] += particleVelocities[i].x;
+                positions[i * 3 + 1] += particleVelocities[i].y;
+                positions[i * 3 + 2] += particleVelocities[i].z;
+                
+                // Reset particles that go too high or out of bounds
+                if (positions[i * 3 + 1] > 7) {
+                    positions[i * 3 + 1] = 0.5;
+                }
+                if (Math.abs(positions[i * 3]) > 10) {
+                    positions[i * 3] = (Math.random() - 0.5) * 15;
+                }
+                if (Math.abs(positions[i * 3 + 2]) > 10) {
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+                }
+            }
+            particlesGeometry.attributes.position.needsUpdate = true;
+            
+            // Animate glowing particles around lamp
+            const glowPositions = glowParticlesGeometry.attributes.position.array;
+            for (let i = 0; i < glowParticleCount; i++) {
+                const angle = time + (i / glowParticleCount) * Math.PI * 2;
+                const radius = 0.5 + Math.sin(time * 2 + i) * 0.2;
+                glowPositions[i * 3] = -3 + Math.cos(angle) * radius;
+                glowPositions[i * 3 + 1] = 2.5 + Math.sin(time * 3 + i) * 0.3;
+                glowPositions[i * 3 + 2] = -3 + Math.sin(angle) * radius;
+            }
+            glowParticlesGeometry.attributes.position.needsUpdate = true;
+            
+            // Pulse glow particles opacity
+            glowMaterial.opacity = 0.5 + Math.sin(time * 2) * 0.3;
 
             renderer.render(scene, camera);
         }
